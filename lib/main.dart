@@ -1,3 +1,4 @@
+import 'package:course_second_app/MainNavBar.dart';
 import 'package:flutter/material.dart';
 
 import 'main_screen.dart';
@@ -12,7 +13,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      home: MainScreen(),
+      home: Mainnavbar(),
     );
   }
 }
