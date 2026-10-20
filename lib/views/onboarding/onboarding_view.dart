@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/onboarding_model.dart';
 import '../main_nav/main_nav_view.dart';
 
@@ -89,9 +90,13 @@ class _OnboardingViewState extends State<OnboardingView> {
             margin: EdgeInsets.all(40),
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 if (currentIndex == contents.length - 1) {
-                  // إذا وصلنا لآخر صفحة، ننتقل للتطبيق الرئيسي
+                  // حفظ أن المستخدم رأى الشاشات
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.setBool('seen_onboarding', true);
+
+                  // الانتقال للتطبيق الرئيسي
                   Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(builder: (_) => MainNavView()),
