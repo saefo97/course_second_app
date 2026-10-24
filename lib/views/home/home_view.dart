@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../core/constants.dart';
 import '../../models/transaction.dart';
+import '../../core/database_helper.dart';
+
+import '../add_transaction/add_transaction_view.dart';
 
 class HomeView extends StatelessWidget {
   @override
@@ -98,15 +101,17 @@ class HomeView extends StatelessWidget {
                             ),
                             child: Icon(Icons.delete, color: Colors.white),
                           ),
-                          onDismissed: (direction) {
-                            // حذف العملية من القائمة وحفظها
+                          onDismissed: (direction) async {
+                            // 1. الحذف من قاعدة بيانات SQLite
+                            await DatabaseHelper.instance.deleteTransaction(tx.id);
+
+                            // 2. تحديث الواجهة (State)
                             final currentList = List<Transaction>.from(transactionsNotifier.value);
                             currentList.removeWhere((element) => element.id == tx.id);
                             transactionsNotifier.value = currentList;
-                            saveTransactionsToPrefs(); // تحديث الحفظ
                             
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('تم حذف العملية')),
+                              SnackBar(content: Text('تم حذف العملية بنجاح')),
                             );
                           },
                           child: Card(
@@ -121,13 +126,63 @@ class HomeView extends StatelessWidget {
                               ),
                               title: Text(tx.title, style: TextStyle(fontWeight: FontWeight.bold)),
                               subtitle: Text('${tx.date.day}/${tx.date.month}/${tx.date.year}'),
-                              trailing: Text(
-                                '${tx.isIncome ? '+' : '-'} ${tx.amount}',
-                                style: TextStyle(
-                                  color: tx.isIncome ? kIncome : kExpense,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    '${tx.isIncome ? '+' : '-'} ${tx.amount}',
+                                    style: TextStyle(
+                                      color: tx.isIncome ? kIncome : kExpense,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                  SizedBox(width: 10),
+                                  // زر التعديل (Edit)
+                                  InkWell(
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => AddTransactionView(transactionToEdit: tx),
+                                        ),
+                                      );
+                                    },
+                                    child: Container(
+                                      padding: EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: Colors.blue.withOpacity(0.1),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Icon(Icons.edit, color: Colors.blue, size: 20),
+                                    ),
+                                  ),
+                                  SizedBox(width: 5),
+                                  // زر الحذف (Delete)
+                                  InkWell(
+                                    onTap: () async {
+                                      // 1. الحذف من قاعدة بيانات SQLite
+                                      await DatabaseHelper.instance.deleteTransaction(tx.id);
+
+                                      // 2. تحديث الواجهة (State)
+                                      final currentList = List<Transaction>.from(transactionsNotifier.value);
+                                      currentList.removeWhere((element) => element.id == tx.id);
+                                      transactionsNotifier.value = currentList;
+                                      
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text('تم حذف العملية بنجاح')),
+                                      );
+                                    },
+                                    child: Container(
+                                      padding: EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: Colors.red.withOpacity(0.1),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Icon(Icons.delete, color: Colors.red, size: 20),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),

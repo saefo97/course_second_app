@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import '../../core/constants.dart';
 import '../../models/transaction.dart';
+import '../../core/database_helper.dart';
 
 class AddTransactionView extends StatefulWidget {
-  const AddTransactionView({super.key});
+  final Transaction? transactionToEdit;
+
+  const AddTransactionView({super.key, this.transactionToEdit});
 
   @override
   _AddTransactionViewState createState() => _AddTransactionViewState();
@@ -17,13 +20,26 @@ class _AddTransactionViewState extends State<AddTransactionView> {
   DateTime _selectedDate = DateTime.now();
 
   @override
+  void initState() {
+    super.initState();
+    // إذا كان هناك عملية ممررة للتعديل، نقوم بتعبئة الحقول ببياناتها
+    if (widget.transactionToEdit != null) {
+      final tx = widget.transactionToEdit!;
+      _titleController.text = tx.title;
+      _amountController.text = tx.amount.toString();
+      _isIncome = tx.isIncome;
+      _selectedDate = tx.date;
+    }
+  }
+
+  @override
   void dispose() {
     _titleController.dispose();
     _amountController.dispose();
     super.dispose();
   }
 
-  void _saveTransaction() {
+  void _saveTransaction() async {
     if (_titleController.text.isEmpty || _amountController.text.isEmpty) {
       // إظهار رسالة خطأ إذا كانت الحقول فارغة
       ScaffoldMessenger.of(context).showSnackBar(
@@ -32,8 +48,11 @@ class _AddTransactionViewState extends State<AddTransactionView> {
       return;
     }
 
+    final isEditing = widget.transactionToEdit != null;
+
     final newTx = Transaction(
-      id: DateTime.now().toString(),
+      // إذا كنا في حالة تعديل، نحافظ على نفس الـ ID القديم، وإلا ننشئ ID جديد
+      id: isEditing ? widget.transactionToEdit!.id : DateTime.now().millisecondsSinceEpoch.toString(), 
       title: _titleController.text,
       amount: double.parse(_amountController.text),
       isIncome: _isIncome,
@@ -41,15 +60,30 @@ class _AddTransactionViewState extends State<AddTransactionView> {
       icon: _isIncome ? Icons.attach_money : Icons.shopping_bag,
     );
 
-    // إضافة العملية للقائمة وتحديث الواجهات المرتبطة
-    final currentList = transactionsNotifier.value;
-    transactionsNotifier.value = List.from(currentList)..add(newTx);
-    
-    // حفظ البيانات محلياً
-    saveTransactionsToPrefs();
+    if (isEditing) {
+      // 1. تحديث في قاعدة البيانات SQLite
+      await DatabaseHelper.instance.updateTransaction(newTx);
+
+      // 2. تحديث الواجهة (State)
+      final currentList = List<Transaction>.from(transactionsNotifier.value);
+      final index = currentList.indexWhere((tx) => tx.id == newTx.id);
+      if (index != -1) {
+        currentList[index] = newTx;
+        transactionsNotifier.value = currentList;
+      }
+    } else {
+      // 1. الحفظ في قاعدة البيانات SQLite
+      await DatabaseHelper.instance.insertTransaction(newTx);
+
+      // 2. تحديث الواجهة (State)
+      final currentList = transactionsNotifier.value;
+      transactionsNotifier.value = List.from(currentList)..add(newTx);
+    }
 
     // العودة للشاشة السابقة
-    Navigator.pop(context);
+    if (mounted) {
+      Navigator.pop(context);
+    }
   }
 
   @override
@@ -57,7 +91,10 @@ class _AddTransactionViewState extends State<AddTransactionView> {
     return Scaffold(
       backgroundColor: kBackground,
       appBar: AppBar(
-        title: Text('إضافة عملية جديدة', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(
+          widget.transactionToEdit != null ? 'تعديل العملية' : 'إضافة عملية جديدة', 
+          style: TextStyle(fontWeight: FontWeight.bold)
+        ),
         backgroundColor: kPrimary,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -251,7 +288,10 @@ class _AddTransactionViewState extends State<AddTransactionView> {
                   elevation: 5,
                 ),
                 onPressed: _saveTransaction,
-                child: Text('حفظ العملية', style: TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold)),
+                child: Text(
+                  widget.transactionToEdit != null ? 'تحديث العملية' : 'حفظ العملية', 
+                  style: TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold)
+                ),
               ),
             )
           ],
