@@ -34,8 +34,14 @@ class Transaction {
     amount: map['amount'],
     isIncome: map['isIncome'] == 1, // نرجعه إلى bool (إذا كان 1 فهو true، وإلا false)
     date: DateTime.parse(map['date']),
-    icon: IconData(map['icon'], fontFamily: 'MaterialIcons'),
+    icon: _getIconFromCodePoint(map['icon']),
   );
+
+  static IconData _getIconFromCodePoint(int codePoint) {
+    if (codePoint == Icons.attach_money.codePoint) return Icons.attach_money;
+    if (codePoint == Icons.shopping_bag.codePoint) return Icons.shopping_bag;
+    return Icons.attach_money; // أيقونة افتراضية في حال عدم العثور عليها
+  }
 }
 
 // مدير الحالة للواجهات
